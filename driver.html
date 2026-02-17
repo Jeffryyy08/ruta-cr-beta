@@ -2,12 +2,75 @@
 <html>
 <head>
   <title>Driver Beta</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body>
   <h2>Driver Tracking</h2>
   <button id="start">Iniciar Ruta</button>
   <button id="stop">Finalizar Ruta</button>
 
-  <script type="module" src="supabase.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <script>
+    const SUPABASE_URL = "https://sljzxaenmwujgjingqst.supabase.co"
+    const SUPABASE_ANON_KEY = "TU_KEY_AQUI"
+
+    const supabaseClient = window.supabase.createClient(
+      SUPABASE_URL,
+      SUPABASE_ANON_KEY
+    )
+
+    let watchId = null
+    const BUS_ID = 1
+
+    document.getElementById("start").addEventListener("click", () => {
+      console.log("Botón iniciar presionado")
+
+      if (!navigator.geolocation) {
+        alert("Geolocalización no soportada")
+        return
+      }
+
+      watchId = navigator.geolocation.watchPosition(
+        async (position) => {
+          const lat = position.coords.latitude
+          const lng = position.coords.longitude
+          const accuracy = position.coords.accuracy
+
+          console.log("Ubicación:", lat, lng, "Precisión:", accuracy)
+
+          const { error } = await supabaseClient
+            .from("locations")
+            .insert([
+              {
+                bus_id: BUS_ID,
+                lat: lat,
+                lng: lng
+              }
+            ])
+
+          if (error) {
+            console.log("Error enviando ubicación:", error)
+          } else {
+            console.log("Ubicación enviada correctamente")
+          }
+        },
+        (error) => {
+          console.log("Error GPS:", error)
+        },
+        {
+          enableHighAccuracy: true,
+          maximumAge: 0
+        }
+      )
+    })
+
+    document.getElementById("stop").addEventListener("click", () => {
+      if (watchId !== null) {
+        navigator.geolocation.clearWatch(watchId)
+        console.log("Tracking detenido")
+      }
+    })
+  </script>
 </body>
 </html>
