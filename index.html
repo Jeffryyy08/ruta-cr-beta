@@ -1,14 +1,23 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Ruta en Vivo</title>
+  <title>Ruta en Tiempo Real</title>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <!-- Leaflet CSS -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  />
+
   <style>
+    body {
+      margin: 0;
+    }
     #map {
       height: 100vh;
+      width: 100%;
     }
   </style>
 </head>
@@ -16,58 +25,53 @@
 
 <div id="map"></div>
 
-<script type="module">
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
+<!-- Supabase -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-const supabaseUrl = 'https://sljzxaenmwujgjingqst.supabase.co'
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNsanp4YWVubXd1amdqaW5ncXN0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEzNDI0MjMsImV4cCI6MjA4NjkxODQyM30.WdvJ95O5SHA5P85oSZMlmqEWbsCbl8Li6u4ctqgs9ho'
-const supabase = createClient(supabaseUrl, supabaseKey)
+<script>
+  // 🔑 TU CONFIGURACIÓN
+  const SUPABASE_URL = "https://TU_PROJECT_ID.supabase.co"
+  const SUPABASE_ANON_KEY = "TU_ANON_KEY"
 
-// Inicializar mapa centrado en Ciudad Quesada
-const map = L.map('map').setView([10.3238, -84.4271], 13)
+  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  attribution: '&copy; OpenStreetMap contributors'
-}).addTo(map)
+  // 🌎 Crear mapa
+  const map = L.map('map').setView([10.323, -84.428], 13)
 
-let marker = L.marker([10.3238, -84.4271]).addTo(map)
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors'
+  }).addTo(map)
 
-// Obtener último bus activo
-async function getLatestBus() {
-  const { data } = await supabase
-    .from('buses')
-    .select('id')
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .single()
+  // 📍 Marcador inicial (invisible hasta recibir datos reales)
+  let marker = L.marker([10.323, -84.428]).addTo(map)
 
-  return data?.id
-}
+  console.log("Mapa cargado. Esperando ubicaciones...")
 
-async function startListening() {
-  const busId = await getLatestBus()
-  if (!busId) return
-
+  // 🚀 Escuchar TODAS las nuevas ubicaciones
   supabase
     .channel('realtime-locations')
     .on(
       'postgres_changes',
-      { event: 'INSERT', schema: 'public', table: 'locations', filter: `bus_id=eq.${busId}` },
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'locations'
+      },
       (payload) => {
         const { lat, lng } = payload.new
+
+        console.log("Nueva ubicación recibida:", lat, lng)
+
         marker.setLatLng([lat, lng])
-        map.panTo([lat, lng])
+        map.setView([lat, lng], 15)
       }
     )
     .subscribe()
-}
-
-startListening()
 
 </script>
-
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
 </body>
 </html>
