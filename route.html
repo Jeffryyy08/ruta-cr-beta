@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Ruta</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <link 
+    rel="stylesheet" 
+    href="https://unpkg.com/leaflet/dist/leaflet.css"
+  />
+
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f4f6f9;
+    }
+
+    #map {
+      height: 80vh;
+      width: 100%;
+    }
+
+    .info-panel {
+      padding: 15px;
+      background: white;
+      box-shadow: 0 -5px 15px rgba(0,0,0,0.1);
+    }
+
+    .route-name {
+      font-size: 18px;
+      font-weight: bold;
+    }
+
+    .back-btn {
+      margin-top: 10px;
+      padding: 8px 12px;
+      background: #2563eb;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .back-btn:hover {
+      background: #1d4ed8;
+    }
+  </style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<div class="info-panel">
+  <div class="route-name" id="routeName"></div>
+  <div id="status">Bus: esperando ubicación...</div>
+  <button class="back-btn" onclick="goBack()">← Volver</button>
+</div>
+
+<script>
+
+  const SUPABASE_URL = "https://sljzxaenmwujgjingqst.supabase.co"
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNsanp4YWVubXd1amdqaW5ncXN0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEzNDI0MjMsImV4cCI6MjA4NjkxODQyM30.WdvJ95O5SHA5P85oSZMlmqEWbsCbl8Li6u4ctqgs9ho"
+
+  const supabase = window.supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_ANON_KEY
+  )
+
+  const urlParams = new URLSearchParams(window.location.search)
+  const routeId = urlParams.get("route_id")
+
+  if (!routeId) {
+    alert("Ruta no válida")
+    window.location.href = "index.html"
+  }
+
+  const map = L.map('map').setView([10.0, -84.0], 13)
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap'
+  }).addTo(map)
+
+  let busMarker = null
+  let routeLine = null
+
+  async function loadRoute() {
+
+    const { data, error } = await supabase
+      .from('routes')
+      .select('*')
+      .eq('id', routeId)
+      .single()
+
+    if (error || !data) {
+      alert("Ruta no encontrada")
+      return
+    }
+
+    document.getElementById("routeName").innerText = data.name
+
+    const geojson = data.geojson
+
+    routeLine = L.geoJSON(geojson, {
+      style: {
+        color: "#2563eb",
+        weight: 5
+      }
+    }).addTo(map)
+
+    map.fitBounds(routeLine.getBounds())
+
+  }
+
+  async function loadLatestLocation() {
+
+    const { data, error } = await supabase
+      .from('locations')
+      .select('*')
+      .eq('route_id', routeId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single()
+
+    if (error || !data) return
+
+    const { lat, lng } = data
+
+    if (!busMarker) {
+      busMarker = L.marker([lat, lng]).addTo(map)
+    } else {
+      busMarker.setLatLng([lat, lng])
+    }
+
+    document.getElementById("status").innerText =
+      `Bus activo | Lat: ${lat.toFixed(5)} | Lng: ${lng.toFixed(5)}`
+  }
+
+  function goBack() {
+    window.location.href = "index.html"
+  }
+
+  // Cargar ruta
+  loadRoute()
+
+  // Actualizar ubicación cada 5 segundos
+  setInterval(loadLatestLocation, 5000)
+
+</script>
+
+</body>
+</html>
