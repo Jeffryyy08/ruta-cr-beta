@@ -1,44 +1,139 @@
-<script type="module">
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BusTracker</title>
 
-import { supabase } from './supabase.js'
+  <style>
+    * {
+      box-sizing: border-box;
+    }
 
-async function loadRoutes() {
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #2563eb, #1e3a8a);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
 
-  const container = document.getElementById("routes")
-  container.innerHTML = "Cargando rutas..."
+    .app {
+      background: white;
+      width: 420px;
+      max-width: 95%;
+      border-radius: 16px;
+      box-shadow: 0 15px 40px rgba(0,0,0,0.2);
+      padding: 30px;
+      animation: fadeIn 0.4s ease-in-out;
+    }
 
-  const { data, error } = await supabase
-    .from('routes')
-    .select('*')
-    .eq('active', true)
+    h1 {
+      margin: 0 0 20px 0;
+      text-align: center;
+      color: #111827;
+    }
 
-  if (error) {
-    console.error(error)
-    container.innerHTML = "Error cargando rutas"
-    return
-  }
+    .subtitle {
+      text-align: center;
+      font-size: 14px;
+      color: #6b7280;
+      margin-bottom: 25px;
+    }
 
-  if (!data || data.length === 0) {
-    container.innerHTML = "No hay rutas activas"
-    return
-  }
+    .route {
+      padding: 15px;
+      margin-bottom: 12px;
+      border-radius: 10px;
+      background: #2563eb;
+      color: white;
+      cursor: pointer;
+      text-align: center;
+      font-weight: bold;
+      transition: 0.2s;
+    }
 
-  container.innerHTML = ""
+    .route:hover {
+      background: #1d4ed8;
+      transform: translateY(-2px);
+    }
 
-  data.forEach(route => {
+    .loading {
+      text-align: center;
+      color: #6b7280;
+      padding: 20px 0;
+    }
 
-    const div = document.createElement("div")
-    div.className = "route"
-    div.innerText = route.name
+    .empty {
+      text-align: center;
+      color: #9ca3af;
+      padding: 20px 0;
+    }
 
-    div.addEventListener("click", () => {
-      window.location.href = `route.html?route_id=${route.id}`
-    })
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
 
-    container.appendChild(div)
-  })
-}
+  </style>
+</head>
+<body>
 
-loadRoutes()
+  <div class="app">
+    <h1>🚌 BusTracker</h1>
+    <div class="subtitle">Selecciona una ruta para ver los buses en tiempo real</div>
 
-</script>
+    <div id="routes" class="loading">
+      Cargando rutas...
+    </div>
+  </div>
+
+  <script type="module">
+
+    import { supabase } from './supabase.js'
+
+    async function loadRoutes() {
+
+      const container = document.getElementById("routes")
+      container.innerHTML = "Cargando rutas..."
+
+      const { data, error } = await supabase
+        .from('routes')
+        .select('*')
+        .eq('active', true)
+
+      if (error) {
+        console.error(error)
+        container.innerHTML = "Error cargando rutas"
+        return
+      }
+
+      if (!data || data.length === 0) {
+        container.innerHTML = "<div class='empty'>No hay rutas activas</div>"
+        return
+      }
+
+      container.innerHTML = ""
+
+      data.forEach(route => {
+
+        const div = document.createElement("div")
+        div.className = "route"
+        div.innerText = route.name
+
+        div.addEventListener("click", () => {
+          window.location.href = `route.html?route_id=${route.id}`
+        })
+
+        container.appendChild(div)
+      })
+    }
+
+    loadRoutes()
+
+  </script>
+
+</body>
+</html>
