@@ -1,137 +1,109 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Bus en Ruta - Panel Admin</title>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8">
+  <title>Panel Administrador - Ruta Test</title>
 
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <!-- Leaflet CSS -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  />
 
   <style>
     body {
       margin: 0;
       font-family: Arial, sans-serif;
-      background: #f4f6f9;
+      background: #f4f4f4;
+    }
+
+    header {
+      background: #1e293b;
+      color: white;
+      padding: 15px;
+      font-size: 18px;
     }
 
     .container {
       display: flex;
-      height: 100vh;
-    }
-
-    #map {
-      flex: 3;
+      height: calc(100vh - 60px);
     }
 
     .sidebar {
-      flex: 1;
+      width: 300px;
       background: white;
       padding: 20px;
-      box-shadow: -2px 0 10px rgba(0,0,0,0.1);
+      box-shadow: 2px 0 5px rgba(0,0,0,0.1);
     }
 
-    .sidebar h2 {
-      margin-top: 0;
-    }
-
-    .info-box {
-      background: #f1f5f9;
-      padding: 12px;
-      border-radius: 8px;
-      margin-bottom: 10px;
-    }
-
-    .status {
-      font-weight: bold;
-      color: green;
-    }
-
-    button {
+    .sidebar button {
       width: 100%;
       padding: 12px;
-      margin-top: 10px;
+      margin-bottom: 10px;
       border: none;
-      border-radius: 8px;
+      background: #2563eb;
+      color: white;
       cursor: pointer;
-      font-weight: bold;
+      border-radius: 6px;
       font-size: 14px;
     }
 
-    .start-btn {
-      background: #2563eb;
-      color: white;
+    .sidebar button:hover {
+      background: #1d4ed8;
     }
 
-    .stop-btn {
-      background: #dc2626;
-      color: white;
+    #map {
+      flex: 1;
     }
+
+    .info {
+      margin-top: 15px;
+      font-size: 14px;
+    }
+
   </style>
 </head>
 <body>
 
+<header>
+  Panel Administrador - Simulación de Ruta
+</header>
+
 <div class="container">
-  <div id="map"></div>
 
   <div class="sidebar">
-    <h2>🛠 Panel Administrador</h2>
+    <button id="startTest">Iniciar Ruta de Prueba</button>
+    <button id="stopTest">Detener Ruta</button>
 
-    <div class="info-box">
-      <strong>Estado:</strong>
-      <div id="status" class="status">Esperando acción...</div>
+    <div class="info">
+      <p><strong>Estado:</strong> <span id="status">Detenido</span></p>
+      <p><strong>Lat:</strong> <span id="lat">-</span></p>
+      <p><strong>Lng:</strong> <span id="lng">-</span></p>
     </div>
-
-    <div class="info-box">
-      <strong>Latitud:</strong>
-      <div id="lat">-</div>
-    </div>
-
-    <div class="info-box">
-      <strong>Longitud:</strong>
-      <div id="lng">-</div>
-    </div>
-
-    <button class="start-btn" onclick="startTestRoute()">
-      Iniciar ruta de prueba
-    </button>
-
-    <button class="stop-btn" onclick="stopTestRoute()">
-      Detener ruta
-    </button>
-
   </div>
+
+  <div id="map"></div>
+
 </div>
 
+<!-- Leaflet JS -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
 
-  // Crear mapa
-  const map = L.map('map').setView([10.33, -84.43], 12)
+  // =============================
+  // CONFIGURACIÓN INICIAL
+  // =============================
+
+  const map = L.map('map').setView([19.4326, -99.1332], 14)
 
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; OpenStreetMap contributors'
+    attribution: '© OpenStreetMap'
   }).addTo(map)
 
-  // Icono bus
-  const busIcon = L.icon({
-    iconUrl: 'https://cdn-icons-png.flaticon.com/512/61/61231.png',
-    iconSize: [40, 40],
-    iconAnchor: [20, 20]
-  })
-
-  let busMarker = L.marker([10.33, -84.43], { icon: busIcon }).addTo(map)
-
-  // ===============================
-  // 🔵 TU RUTA (usa la que ya tienes)
-  // ===============================
-
-  const routeGeoJSON = {
-    "type": "Feature",
-    "geometry": {
-      "type": "LineString",
-      "coordinates": [
-        [
+  // Ruta de prueba (puedes cambiar coordenadas)
+  const coords = [
+    [
             -84.43506854609865,
             10.332746895648071
           ],
@@ -1207,66 +1179,99 @@
             -84.2723445854507,
             10.456050488994563
           ]
-        ],
+        ]
+
+  // Dibujar la línea completa
+  const routeLine = L.polyline(
+    coords.map(c => [c[1], c[0]]),
+    { color: 'blue', weight: 4 }
+  ).addTo(map)
+
+  map.fitBounds(routeLine.getBounds())
+
+  // Marcador del bus
+  const busMarker = L.marker([coords[0][1], coords[0][0]])
+    .addTo(map)
+    .bindPopup("Bus en prueba")
+
+  let currentIndex = 0
+  let testInterval = null
+
+  // =============================
+  // ANIMACIÓN SUAVE
+  // =============================
+
+  function animateMarker(from, to, duration = 500) {
+    const start = performance.now()
+
+    function animate(time) {
+      const progress = Math.min((time - start) / duration, 1)
+
+      const lat = from.lat + (to.lat - from.lat) * progress
+      const lng = from.lng + (to.lng - from.lng) * progress
+
+      busMarker.setLatLng([lat, lng])
+
+      if (progress < 1) {
+        requestAnimationFrame(animate)
+      }
     }
+
+    requestAnimationFrame(animate)
   }
 
-  const routeLayer = L.geoJSON(routeGeoJSON, {
-    style: {
-      color: "#2563eb",
-      weight: 5
-    }
-  }).addTo(map)
+  // =============================
+  // BOTÓN INICIAR
+  // =============================
 
-  map.fitBounds(routeLayer.getBounds())
+  document.getElementById("startTest").addEventListener("click", () => {
 
-  // ===============================
-  // 🚀 SIMULACIÓN DE RUTA
-  // ===============================
+    if (testInterval) return
 
-  let testInterval = null
-  let currentIndex = 0
-
-  function startTestRoute() {
-
-    const coords = routeGeoJSON.geometry.coordinates
-
-    if (testInterval) {
-      clearInterval(testInterval)
-    }
-
+    document.getElementById("status").innerText = "En ruta"
     currentIndex = 0
 
-    document.getElementById("status").innerText = "Ruta de prueba en curso"
+    busMarker.setLatLng([coords[0][1], coords[0][0]])
 
     testInterval = setInterval(() => {
 
-      if (currentIndex >= coords.length) {
+      if (currentIndex >= coords.length - 1) {
         clearInterval(testInterval)
+        testInterval = null
         document.getElementById("status").innerText = "Ruta finalizada"
         return
       }
 
-      const lng = coords[currentIndex][0]
-      const lat = coords[currentIndex][1]
+      const from = L.latLng(
+        coords[currentIndex][1],
+        coords[currentIndex][0]
+      )
 
-      busMarker.setLatLng([lat, lng])
-      map.panTo([lat, lng], { animate: true, duration: 0.5 })
+      const to = L.latLng(
+        coords[currentIndex + 1][1],
+        coords[currentIndex + 1][0]
+      )
 
-      document.getElementById("lat").innerText = lat
-      document.getElementById("lng").innerText = lng
+      animateMarker(from, to, 800)
+
+      document.getElementById("lat").innerText = to.lat.toFixed(6)
+      document.getElementById("lng").innerText = to.lng.toFixed(6)
 
       currentIndex++
 
-    }, 300) // velocidad (más bajo = más rápido)
-  }
+    }, 800)
 
-  function stopTestRoute() {
-    if (testInterval) {
-      clearInterval(testInterval)
-      document.getElementById("status").innerText = "Ruta detenida"
-    }
-  }
+  })
+
+  // =============================
+  // BOTÓN DETENER
+  // =============================
+
+  document.getElementById("stopTest").addEventListener("click", () => {
+    clearInterval(testInterval)
+    testInterval = null
+    document.getElementById("status").innerText = "Detenido"
+  })
 
 </script>
 
