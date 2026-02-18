@@ -1,99 +1,44 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <title>BusTracker</title>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script type="module">
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+import { supabase } from './supabase.js'
 
-  <style>
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background: #f4f6f9;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-    }
+async function loadRoutes() {
 
-    .card {
-      background: white;
-      padding: 40px;
-      border-radius: 12px;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-      width: 400px;
-    }
+  const container = document.getElementById("routes")
+  container.innerHTML = "Cargando rutas..."
 
-    h1 {
-      margin-top: 0;
-      text-align: center;
-    }
+  const { data, error } = await supabase
+    .from('routes')
+    .select('*')
+    .eq('active', true)
 
-    .route {
-      padding: 15px;
-      margin-top: 10px;
-      border-radius: 8px;
-      background: #2563eb;
-      color: white;
-      cursor: pointer;
-      text-align: center;
-      transition: 0.2s;
-    }
-
-    .route:hover {
-      background: #1d4ed8;
-    }
-
-  </style>
-</head>
-<body>
-
-<div class="card">
-  <h1>🚌 BusTracker</h1>
-  <div id="routes"></div>
-</div>
-
-<script>
-
-  const SUPABASE_URL = "https://sljzxaenmwujgjingqst.supabase.co"
-  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNsanp4YWVubXd1amdqaW5ncXN0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEzNDI0MjMsImV4cCI6MjA4NjkxODQyM30.WdvJ95O5SHA5P85oSZMlmqEWbsCbl8Li6u4ctqgs9ho"
-
-  const supabase = window.supabase.createClient(
-    SUPABASE_URL,
-    SUPABASE_ANON_KEY
-  )
-
-  async function loadRoutes() {
-    const { data, error } = await supabase
-      .from('routes')
-      .select('*')
-      .eq('active', true)
-
-    if (error) {
-      alert("Error cargando rutas")
-      return
-    }
-
-    const container = document.getElementById("routes")
-
-    data.forEach(route => {
-      const div = document.createElement("div")
-      div.className = "route"
-      div.innerText = route.name
-
-      div.onclick = () => {
-        window.location.href = `route.html?route_id=${route.id}`
-      }
-
-      container.appendChild(div)
-    })
+  if (error) {
+    console.error(error)
+    container.innerHTML = "Error cargando rutas"
+    return
   }
 
-  loadRoutes()
+  if (!data || data.length === 0) {
+    container.innerHTML = "No hay rutas activas"
+    return
+  }
+
+  container.innerHTML = ""
+
+  data.forEach(route => {
+
+    const div = document.createElement("div")
+    div.className = "route"
+    div.innerText = route.name
+
+    div.addEventListener("click", () => {
+      window.location.href = `route.html?route_id=${route.id}`
+    })
+
+    container.appendChild(div)
+  })
+}
+
+loadRoutes()
 
 </script>
-
-</body>
-</html>
