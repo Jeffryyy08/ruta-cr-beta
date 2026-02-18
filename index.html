@@ -84,6 +84,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
+
   const SUPABASE_URL = "https://sljzxaenmwujgjingqst.supabase.co"
   const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNsanp4YWVubXd1amdqaW5ncXN0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEzNDI0MjMsImV4cCI6MjA4NjkxODQyM30.WdvJ95O5SHA5P85oSZMlmqEWbsCbl8Li6u4ctqgs9ho"
 
@@ -92,14 +93,16 @@
     SUPABASE_ANON_KEY
   )
 
-  // Crear mapa
+  // ============================
+  // MAPA
+  // ============================
+
   const map = L.map('map').setView([10.33, -84.43], 12)
 
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; OpenStreetMap contributors'
   }).addTo(map)
 
-  // Icono del bus
   const busIcon = L.icon({
     iconUrl: 'https://cdn-icons-png.flaticon.com/512/61/61231.png',
     iconSize: [40, 40],
@@ -108,8 +111,39 @@
 
   let busMarker = L.marker([10.33, -84.43], { icon: busIcon }).addTo(map)
 
+  let lastPosition = null
+  let animating = false
+
   // ============================
-  // 🔵 PEGA TU LINESTRING AQUÍ
+  // ANIMACIÓN SUAVE
+  // ============================
+
+  function animateMarker(from, to, duration = 1000) {
+    if (animating) return
+    animating = true
+
+    const start = performance.now()
+
+    function animate(time) {
+      const progress = Math.min((time - start) / duration, 1)
+
+      const lat = from.lat + (to.lat - from.lat) * progress
+      const lng = from.lng + (to.lng - from.lng) * progress
+
+      busMarker.setLatLng([lat, lng])
+
+      if (progress < 1) {
+        requestAnimationFrame(animate)
+      } else {
+        animating = false
+      }
+    }
+
+    requestAnimationFrame(animate)
+  }
+
+  // ============================
+  // RUTA (tu GeoJSON intacto)
   // ============================
 
   const routeGeoJSON = {
@@ -117,7 +151,7 @@
     "geometry": {
       "type": "LineString",
       "coordinates": [
-          [
+        [
             -84.43506854609865,
             10.332746895648071
           ],
@@ -1193,21 +1227,18 @@
             -84.2723445854507,
             10.456050488994563
           ]
-        ],
+        ]
     }
   }
 
   const routeLayer = L.geoJSON(routeGeoJSON, {
-    style: {
-      color: "#2563eb",
-      weight: 5
-    }
+    style: { color: "#2563eb", weight: 5 }
   }).addTo(map)
 
   map.fitBounds(routeLayer.getBounds())
 
   // ============================
-  // 🚀 TIEMPO REAL
+  // REALTIME
   // ============================
 
   supabaseClient
@@ -1220,12 +1251,21 @@
         table: 'locations'
       },
       (payload) => {
+
         const { lat, lng, created_at } = payload.new
 
-        busMarker.setLatLng([lat, lng])
-        map.panTo([lat, lng], { animate: true, duration: 0.5 })
+        const newPosition = L.latLng(lat, lng)
 
-        // Actualizar panel lateral
+        if (!lastPosition) {
+          busMarker.setLatLng(newPosition)
+        } else {
+          animateMarker(lastPosition, newPosition, 1500)
+        }
+
+        map.panTo(newPosition, { animate: true, duration: 1 })
+
+        lastPosition = newPosition
+
         document.getElementById("lat").innerText = lat
         document.getElementById("lng").innerText = lng
         document.getElementById("time").innerText = new Date(created_at).toLocaleTimeString()
